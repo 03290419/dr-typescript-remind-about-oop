@@ -8,22 +8,16 @@
     interface CoffeeMaker {
         makeCoffee(shots: number): CoffeeCup;
     }
-    interface MilkFrother {
-        makeMilk(cup: CoffeeCup): CoffeeCup;
-    }
-    interface SugarProvider {
-        addSugar(cup: CoffeeCup): CoffeeCup;
-    }
 
     class CoffeeMachine implements CoffeeMaker {
         private static BEANS_GRAMM_PER_SHOT: number = 7;
         private coffeeBeans: number = 0;
-        public constructor(coffeeBeans: number) {
+        public constructor(
+            coffeeBeans: number,
+            private milk: MilkFrother,
+            private sugar: SugarProvider
+        ) {
             this.coffeeBeans = coffeeBeans;
-        }
-
-        static makeMachine(coffeeBeans: number): CoffeeMachine {
-            return new CoffeeMachine(coffeeBeans);
         }
 
         fillCoffeeBeans(beans: number) {
@@ -56,9 +50,18 @@
         makeCoffee(shots: number): CoffeeCup {
             this.grindBeans(shots);
             this.preheat();
-            return this.extract(shots);
+            const coffee = this.extract(shots);
+            const sugarAdded = this.sugar.addSugar(coffee);
+            return this.milk.makeMilk(sugarAdded);
         }
     }
+    interface MilkFrother {
+        makeMilk(cup: CoffeeCup): CoffeeCup;
+    }
+    interface SugarProvider {
+        addSugar(cup: CoffeeCup): CoffeeCup;
+    }
+
     // 우유 거품기 -> 커피머신을 새로 만드는 것이 아니라 기능을 새로 만듦.
     class CheapMilkSteamer implements MilkFrother {
         private steamMilk(): void {
@@ -96,6 +99,11 @@
             };
         }
     }
+    class NoMilk implements MilkFrother {
+        makeMilk(cup: CoffeeCup): CoffeeCup {
+            return cup;
+        }
+    }
 
     // 설탕 제조기
     class CandySugarMixer implements SugarProvider {
@@ -124,60 +132,24 @@
             };
         }
     }
-
-    class CaffeLatteMachine extends CoffeeMachine {
-        // 만약 자식 클래스에서 자식 클래스에서만 받을 수 있는 인자가 있다면
-        constructor(
-            beans: number,
-            public readonly serialNumber: string,
-            private milkFrother: MilkFrother
-        ) {
-            super(beans);
-        }
-        makeCoffee(shots: number): CoffeeCup {
-            const coffee = super.makeCoffee(shots); // 이 부분에서 이미 부모요소는 호출이 됨
-            return this.milkFrother.makeMilk(coffee);
-        }
-    }
-
-    class SweetCoffeemaker extends CoffeeMachine {
-        constructor(private beans: number, private sugar: SugarProvider) {
-            super(beans);
-        }
-        makeCoffee(shots: number): CoffeeCup {
-            const coffee = super.makeCoffee(shots);
-            return this.sugar.addSugar(coffee);
-        }
-    }
-
-    class SweetCaffeLatteMachine extends CoffeeMachine {
-        constructor(
-            private beans: number,
-            private milk: MilkFrother,
-            private sugar: SugarProvider
-        ) {
-            super(beans);
-        }
-        makeCoffee(shots: number): CoffeeCup {
-            const coffee = super.makeCoffee(shots);
-            return this.milk.makeMilk(this.sugar.addSugar(coffee));
+    class Nosugar implements SugarProvider {
+        addSugar(cup: CoffeeCup): CoffeeCup {
+            return cup;
         }
     }
     const cheapMilkMaker = new CheapMilkSteamer();
     const fancyMilkMaker = new FancyMilkSteamer();
     const coldMilkMaker = new ColdMilkSteamer();
+    const noMilk = new NoMilk();
 
     const candySugar = new CandySugarMixer();
     const sugar = new SugarMixer();
+    const noSugar = new Nosugar();
 
-    const sweetCandyMachine = new SweetCoffeemaker(12, candySugar);
-    const sweetMachine = new SweetCoffeemaker(12, sugar);
+    const sweetCandyMachine = new CoffeeMachine(12, noMilk, candySugar);
+    const sweetMachine = new CoffeeMachine(12, noMilk, sugar);
 
-    const latteMachine = new CaffeLatteMachine(12, 'ss', cheapMilkMaker);
-    const coldLatteMachine = new CaffeLatteMachine(12, 'ss', coldMilkMaker);
-    const sweetLatteMachine = new SweetCaffeLatteMachine(
-        12,
-        cheapMilkMaker,
-        candySugar
-    );
+    const latteMachine = new CoffeeMachine(12, cheapMilkMaker, noSugar);
+    const coldLatteMachine = new CoffeeMachine(12, coldMilkMaker, noSugar);
+    const sweetLatteMachine = new CoffeeMachine(12, cheapMilkMaker, candySugar);
 }
